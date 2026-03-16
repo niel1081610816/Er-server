@@ -1,26 +1,60 @@
-import streamlit as st
-import pandas as pd
 
-if 'dati' not in st.session_state:
-    st.session_state.dati = pd.DataFrame(columns=["Nome", "Età", "Scuola", "Sesso"])
+# SALVA
+
+
+
+
+import streamlit as st
+from supabase import create_client
+
+url = "https://kjqncgasirjzilovibat.supabase.co"
+key = "LA_TUA_KEY"
+
+supabase = create_client(url, key)
+
+st.title("Titolo del sito")
 
 nome = st.text_input("Nome")
-eta = st.text_input("Età")
-scuola = st.text_input("Scuola")
-sesso = st.radio("Sesso", ["Maschio", "Femmina", "Nessuno dei due"])
+ruolo = st.selectbox("Chi sei?", ["produttore", "cantante", "entrambi"])
+genere = st.selectbox("Genere", ["uomo", "donna", "nessuno dei due", "preferisco non rispondere"])
 
-if st.button("Aggiungi alla tabella"):
-    if nome and eta and scuola and sesso:
-        nuova_riga = pd.DataFrame([[nome, eta, scuola, sesso]],
-                                  columns=["Nome", "Età", "Scuola", "Sesso"])
-        st.session_state.dati = pd.concat([st.session_state.dati, nuova_riga],
-                                          ignore_index=True)
-    else:
-        st.error("Compila tutti i campi!")
+# 👉 SALVATAGGIO
+if st.button("Salva il profilo"):
+    supabase.table("utenti").insert({
+        "nome": nome,
+        "genere": genere,
+        "ruolo": ruolo
+    }).execute()
 
-st.dataframe(st.session_state.dati)
+    st.success("Profilo salvato!")
 
-if st.button("Mostra dati copiabili"):
-    st.code(st.session_state.dati.to_csv(index=False, sep="\t"), language='text')
-    st.info("Seleziona il testo sopra per copiarlo e incollarlo dove vuoi!")
+# 👉 MATCH FUNCTION (SEMPLICE)
+def match(user, others):
+    risultati = []
+    for u in others:
+        score = 0
+        if user["genere"] == u["genere"]:
+            score += 50
+        if user["ruolo"] != u["ruolo"]:
+            score += 50
+        risultati.append((u, score))
+    return sorted(risultati, key=lambda x: x[1], reverse=True)
+
+# 👉 PRENDI DATI
+response = supabase.table("utenti").select("*").execute()
+
+if response.data and len(response.data) > 1:
+    current_user = response.data[-1]
+
+    risultati = match(current_user, response.data)
+
+    st.subheader("Collaboratori suggeriti")
+
+    for u, score in risultati:
+        if u["nome"] != current_user["nome"]:
+            st.write(f"{u['nome']} → compatibilità: {score}%")
+
+else:
+    st.write("Inserisci almeno 2 utenti per vedere i match")
+
 
