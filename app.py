@@ -1,4 +1,4 @@
-
+st.title("BEGINNER COLLAB")
 import streamlit as st
 from supabase import create_client
 url = "https://kjqncgasirjzilovibat.supabase.co"
