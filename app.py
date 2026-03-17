@@ -2,7 +2,6 @@
 import streamlit as st
 from supabase import create_client
 
-# ====== CONFIG SUPABASE ======
 url = "https://hcyuowvrrjccmvcgebaj.supabase.co"
 key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjeXVvd3ZycmpjY212Y2dlYmFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NjExOTYsImV4cCI6MjA4OTMzNzE5Nn0.rpMn8jxHagUJsOLjJXW79oV5ogUnGhxv-kr9TGWhj98"
 
@@ -10,7 +9,6 @@ supabase = create_client(url, key)
 
 st.title("🎧 Music Collaboration Platform")
 
-# ====== CREAZIONE PROFILO ======
 nome = st.text_input("Nome artista")
 
 ruolo = st.selectbox(
@@ -28,7 +26,6 @@ bpm = st.slider("BPM preferito", 60, 200, 120)
 audio_file = st.file_uploader("Carica traccia MP3", type=["mp3"])
 
 
-# ====== SALVATAGGIO PROFILO ======
 if st.button("Salva profilo"):
 
     audio_url = None
@@ -55,7 +52,6 @@ if st.button("Salva profilo"):
 
 
 
-# ====== MATCHING ======
 def match(user, others):
 
     risultati = []
@@ -67,16 +63,13 @@ def match(user, others):
 
         score = 0
 
-        # compatibilità generi
         common = set(user["generi"]).intersection(set(u["generi"]))
         if common:
             score += len(common) * 20
 
-        # compatibilità bpm
         if abs(user["bpm"] - u["bpm"]) < 10:
             score += 30
 
-        # ruolo complementare
         if user["ruolo"] != u["ruolo"]:
             score += 30
 
@@ -88,7 +81,6 @@ def match(user, others):
 
 
 
-# ====== MOSTRA COLLABORATORI ======
 response = supabase.table("utenti").select("*").execute()
 
 if response.data:
@@ -99,7 +91,7 @@ if response.data:
 
     st.subheader("🔥 Collaboratori suggeriti")
 
-    # filtri
+
     soglia = st.slider("Compatibilità minima", 0, 100, 40)
 
     search = st.text_input("Cerca nome artista")
