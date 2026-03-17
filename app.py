@@ -1,60 +1,118 @@
 
-# SALVA
-
-
-
-
 import streamlit as st
 from supabase import create_client
 
-url = "https://kjqncgasirjzilovibat.supabase.co"
-key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjeXVvd3ZycmpjY212Y2dlYmFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NjExOTYsImV4cCI6MjA4OTMzNzE5Nn0.rpMn8jxHagUJsOLjJXW79oV5ogUnGhxv-kr9TGWhj98"
+# ====== CONFIG SUPABASE ======
+url = "https://TUO_PROGETTO.supabase.co"
+key = "TUA_ANON_KEY"
 
 supabase = create_client(url, key)
 
-st.title("Titolo del sito")
+st.title("🎧 Music Collaboration Platform")
 
-nome = st.text_input("Nome")
-ruolo = st.selectbox("Chi sei?", ["produttore", "cantante", "entrambi"])
-genere = st.selectbox("Genere", ["uomo", "donna", "nessuno dei due", "preferisco non rispondere"])
+# ====== CREAZIONE PROFILO ======
+nome = st.text_input("Nome artista")
 
-# 👉 SALVATAGGIO
-if st.button("Salva il profilo"):
+ruolo = st.selectbox(
+    "Chi sei?",
+    ["produttore", "cantante", "entrambi"]
+)
+
+genere = st.multiselect(
+    "Generi musicali",
+    ["pop","rock","hiphop","trap","edm","techno","house","indie","jazz","metal"]
+)
+
+bpm = st.slider("BPM preferito", 60, 200, 120)
+
+audio_file = st.file_uploader("Carica traccia MP3", type=["mp3"])
+
+
+# ====== SALVATAGGIO PROFILO ======
+if st.button("Salva profilo"):
+
+    audio_url = None
+
+    if audio_file is not None:
+        file_bytes = audio_file.read()
+
+        supabase.storage.from_("audio").upload(
+            f"{nome}.mp3",
+            file_bytes
+        )
+
+        audio_url = supabase.storage.from_("audio").get_public_url(f"{nome}.mp3")
+
     supabase.table("utenti").insert({
         "nome": nome,
-        "genere": genere,
-        "ruolo": ruolo
+        "ruolo": ruolo,
+        "generi": genere,
+        "bpm": bpm,
+        "audio_url": audio_url
     }).execute()
 
     st.success("Profilo salvato!")
 
-# 👉 MATCH FUNCTION (SEMPLICE)
+
+
+# ====== MATCHING ======
 def match(user, others):
+
     risultati = []
+
     for u in others:
+
+        if u["nome"] == user["nome"]:
+            continue
+
         score = 0
-        if user["genere"] == u["genere"]:
-            score += 50
+
+        # compatibilità generi
+        common = set(user["generi"]).intersection(set(u["generi"]))
+        if common:
+            score += len(common) * 20
+
+        # compatibilità bpm
+        if abs(user["bpm"] - u["bpm"]) < 10:
+            score += 30
+
+        # ruolo complementare
         if user["ruolo"] != u["ruolo"]:
-            score += 50
+            score += 30
+
         risultati.append((u, score))
+
+    risultati = [r for r in risultati if r[1] >= 40]
+
     return sorted(risultati, key=lambda x: x[1], reverse=True)
 
-# 👉 PRENDI DATI
+
+
+# ====== MOSTRA COLLABORATORI ======
 response = supabase.table("utenti").select("*").execute()
 
-if response.data and len(response.data) > 1:
+if response.data:
+
     current_user = response.data[-1]
 
     risultati = match(current_user, response.data)
 
-    st.subheader("Collaboratori suggeriti")
+    st.subheader("🔥 Collaboratori suggeriti")
+
+    # filtri
+    soglia = st.slider("Compatibilità minima", 0, 100, 40)
+
+    search = st.text_input("Cerca nome artista")
 
     for u, score in risultati:
-        if u["nome"] != current_user["nome"]:
-            st.write(f"{u['nome']} → compatibilità: {score}%")
 
-else:
-    st.write("Inserisci almeno 2 utenti per vedere i match")
+        if score < soglia:
+            continue
 
+        if search and search.lower() not in u["nome"].lower():
+            continue
 
+        st.write(f"🎤 {u['nome']} — Compatibilità: {score}%")
+
+        if u["audio_url"]:
+            st.audio(u["audio_url"])
